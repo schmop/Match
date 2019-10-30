@@ -92,7 +92,7 @@ export default class Match {
 		this.ctx.clearRect(0, 0, this.width, this.height);
 
 		this.renderables.forEach(renderable => {
-		  renderable.render(this.ctx);
+		  renderable.obj.render(this.ctx);
 		});
 	}
 
@@ -100,16 +100,18 @@ export default class Match {
 		this.updateables.push(obj);
 	}
 
-	addRenderable(obj) {
-		this.renderables.push(obj);
+	addRenderable(obj, layer) {
+		layer = layer || 0;
+		this.renderables.push({obj: obj, layer: layer});
+		this.renderables.sort((r1, r2) => r1.layer - r2.layer);
 	}
 
 	removeUpdateable(obj) {
-		this.updateables = this.updateables.filter(updateable => updateable === obj);
+		this.updateables = this.updateables.filter(updateable => updateable !== obj);
 	}
 
 	removeRenderable(obj) {
-		this.renderables = this.renderables.filter(renderable => renderable === obj)
+		this.renderables = this.renderables.filter(renderable => renderable.obj !== obj)
 	}
 
 	get width() { return this._width; }

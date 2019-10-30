@@ -7,10 +7,12 @@ export default class Block {
 
 	constructor(x, y, team) {
 		this.pos = new vec2(x,y);
+		this.posOffset = new vec2(0,0);
 		this.vel = new vec2(0,0);
 		this.team = team;
 		this.color = Color.getUniqueColor(this.team, Field.NUM_BLOCKTYPES, Block.UNHOVERED_BRIGHTNESS);
 		this.hoverColor = this.color.maximizeBrightness();
+		this.shownSize = 0;
 
 		this.game.addUpdateable(this);
 		this.game.addRenderable(this);
@@ -40,6 +42,7 @@ export default class Block {
 	}; }
 
 	remove() {
+		console.log("remove");
 		this.game.removeUpdateable(this);
 		this.game.removeRenderable(this);
 		this.field.blocks = this.otherBlocks.filter(block => block !== this);
@@ -55,13 +58,11 @@ export default class Block {
 		this.applyAcceleration();
 		this.checkCollision();
 		this.applyVelocity();
-		this.handleMouse();
+		this.animate();
 	}
 
-	handleMouse() {
-		if (this.clicked) {
-
-		}
+	animate() {
+		this.shownSize += (this.size - this.shownSize) * 0.1;
 	}
 
 	checkCollision() {
@@ -120,8 +121,8 @@ export default class Block {
 	render(ctx) {
 		ctx.beginPath();
 		ctx.fillStyle = (this.hovered ? this.hoverColor : this.color).toString();
-
-		ctx.rect(this.pos.x, this.pos.y, this.size, this.size);
+		let renderPosition = this.pos.add(this.posOffset).add(new vec2(1,1).scale((this.size - this.shownSize) / 2));
+		ctx.rect(renderPosition.x, renderPosition.y, this.shownSize, this.shownSize);
 		ctx.fill();
 	}
 }
