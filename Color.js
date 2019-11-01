@@ -11,7 +11,7 @@ export default class Color {
       this.r = r || 0;
       this.g = g || 0;
       this.b = b || 0;
-      this.a = a || 1;
+      this.a = a == null ? 1 : a;
     }
   }
 

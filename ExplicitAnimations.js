@@ -37,9 +37,16 @@ export default class ExplicitAnimations {
     let alpha = 0;
     let animationObj = {
       render: (ctx) => {
+        ctx.strokeStyle = (new Color(0, 0, 0, alpha/255)).toString();
+        ctx.lineWidth = Field.BLOCK_SIZE / 10;
         blocks.forEach(block => {
           let diff = block.bottomRight.sub(block.topLeft);
-          ctx.strokeStyle = (new Color(255, 255, 255, alpha/255)).toString();
+          ctx.strokeRect(block.topLeft.x, block.topLeft.y, diff.x, diff.y);
+        });
+        ctx.strokeStyle = (new Color(255, 255, 255, alpha/255)).toString();
+        ctx.lineWidth = Field.BLOCK_SIZE / 20;
+        blocks.forEach(block => {
+          let diff = block.bottomRight.sub(block.topLeft);
           ctx.strokeRect(block.topLeft.x, block.topLeft.y, diff.x, diff.y);
         });
       }
