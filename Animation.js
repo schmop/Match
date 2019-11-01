@@ -6,7 +6,7 @@ export default class Animation {
   }
 
   get game() { return window.game; }
-  get animationsActive() { return this.animations.length; }
+  get animationsActive() { return this.animations.length > 0; }
 
   startAnimation(callback, finishCallback) {
     if (typeof callback !== "function") {

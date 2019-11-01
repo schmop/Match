@@ -9,14 +9,17 @@ export default class Match {
 	constructor(canvasId) {
 		this.renderables = [];
 		this.updateables = [];
+		this.nextTicks = [];
 		this.canvas = document.getElementById(canvasId);
-		this.ctx = this.canvas.getContext("2d");
-		this.width = this.canvas.width;
-		this.height = this.canvas.height;
+
 		this.mouse = {
 			pos: new vec2(-1, -1),
 			down: false,
 		};
+		this.bestMoveElement = document.getElementById("best-move");
+		this.scoreElement = document.getElementById("score");
+		this.score = 0;
+		this.bestMove = 0;
 	}
 
 	createRandomColor() {
@@ -27,7 +30,20 @@ export default class Match {
 		);
 	}
 
+	initCanvas() {
+		this.width = Math.floor(window.innerWidth / Field.BLOCK_SIZE) * Field.BLOCK_SIZE;
+		this.height = this.width * (window.innerHeight / window.innerWidth) - this.canvas.getBoundingClientRect().top;
+		// round to blocksize
+		this.height = Math.floor(this.height / Field.BLOCK_SIZE) * Field.BLOCK_SIZE;
+		this.canvas.width = this.width;
+		this.canvas.height = this.height;
+		this.ctx = this.canvas.getContext("2d");
+	}
+
 	init() {
+		this.setScore(0);
+		this.setBestMove(0);
+		this.initCanvas();
 		this.loadAudioFiles();
 		this.registerListeners();
 		this.initField();
@@ -37,20 +53,62 @@ export default class Match {
 		this.field = new Field();
 	}
 
+	setScore(score) {
+		this.score = score;
+		this.scoreElement.innerHTML = "Score: " + this.score;
+	}
+
+	addScore(score) {
+		this.setScore(this.score + score);
+		if (score > this.bestMove) {
+			this.setBestMove(score);
+		}
+	}
+
+	setBestMove(score) {
+		this.bestMove = score;
+		this.bestMoveElement.innerHTML = "Best Move: " + this.bestMove;
+	}
+
 	loadAudioFiles() {
 		this.audio = new AudioSrc('water.mp3');
 	}
 
 	registerListeners() {
-		this.canvas.addEventListener('mousemove', (event) => {
-			this.mouse.pos = new vec2(event.x, event.y);
-		});
-		this.canvas.addEventListener('mousedown', (event) => {
+		let updateMouseByTouchEvent = (touch) => {
+			let rect = touch.target.getBoundingClientRect();
+			this.mouse.pos = new vec2(touch.targetTouches[0].pageX - rect.left, touch.targetTouches[0].pageY - rect.top);
+		};
+		let mouseMoveCallback = (event) => {
+			if ('touches' in event) {
+				updateMouseByTouchEvent(event);
+				event.preventDefault();
+			} else {
+				this.mouse.pos = new vec2(event.offsetX, event.offsetY);
+			}
+		};
+		this.canvas.addEventListener('mousemove', mouseMoveCallback);
+		this.canvas.addEventListener('touchmove', mouseMoveCallback, false);
+		let mouseStartCallback = (event) => {
 			this.mouse.down = true;
-		});
-		this.canvas.addEventListener('mouseup', (event) => {
+			if ('touches' in event) {
+				updateMouseByTouchEvent(event);
+			}
+		};
+		this.canvas.addEventListener('mousedown', mouseStartCallback);
+		this.canvas.addEventListener('touchstart', mouseStartCallback, false);
+		let mouseEndCallback = (event) => {
 			this.mouse.down = false;
-		});
+			if ('touches' in event) {
+				this.nextTick(() => {
+					this.mouse.pos = new vec2(-1, -1);
+				});
+			}
+		};
+		this.canvas.addEventListener('mouseup', mouseEndCallback);
+		this.canvas.addEventListener('touchend', mouseEndCallback, false);
+		this.canvas.addEventListener('touchcancel', mouseEndCallback, false);
+
 		this.canvas.addEventListener('mouseout', (event) => {
 			this.mouse.pos = new vec2(-1, -1);
 		});
@@ -67,6 +125,10 @@ export default class Match {
 		});
 	}
 
+	nextTick(callback) {
+		this.nextTicks.push(callback);
+	}
+
 	clear() {
 		this.updateables = [];
 		this.renderables = [];
@@ -79,6 +141,7 @@ export default class Match {
 	tick() {
 		this.update();
 		this.render();
+		this.execNextTicks();
 		requestAnimationFrame(this.tick.bind(this));
 	}
 
@@ -96,6 +159,15 @@ export default class Match {
 		});
 	}
 
+	execNextTicks() {
+		this.nextTicks.forEach(callback => {
+			if (typeof callback === 'function') {
+				callback();
+			}
+		});
+		this.nextTicks = [];
+	}
+
 	addUpdateable(obj) {
 		this.updateables.push(obj);
 	}
@@ -111,7 +183,7 @@ export default class Match {
 	}
 
 	removeRenderable(obj) {
-		this.renderables = this.renderables.filter(renderable => renderable.obj !== obj)
+		this.renderables = this.renderables.filter(renderable => renderable.obj !== obj);
 	}
 
 	get width() { return this._width; }

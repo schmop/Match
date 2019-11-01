@@ -27,7 +27,10 @@ export default class Color {
   }
 
   static getUniqueColor(index, num, brightness) {
-    return Color.fromHsv(index / num, 1, brightness / 255);
+    if (brightness == null) {
+      brightness = 255;
+    }
+    return Color.fromHsv(index / num, 1, (brightness - 50 * (index % 2)) / 255);
   }
 
   static fromHsv(h, s, v) {

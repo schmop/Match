@@ -4,6 +4,7 @@ import Utils from './Utils.js';
 import Block from './Block.js';
 import Grid from './Grid.js';
 import Animation from './Animation.js';
+import ExplicitAnimations from './ExplicitAnimations.js';
 
 export default class Field {
   constructor() {
@@ -11,7 +12,9 @@ export default class Field {
     this.grid = new Grid(this.maxCols);
     this.draggingStart = null;
     this.waitForMovementStop = false;
+    this.blockingAnimation = new Animation();
     this.animation = new Animation();
+    this.moveScore = 0;
 
     this.game.addUpdateable(this);
     this.game.addRenderable(this, 10);
@@ -21,7 +24,7 @@ export default class Field {
   }
 
   static get BLOCK_SIZE() { return 64; }
-  static get NUM_BLOCKTYPES() { return 5; }
+  static get NUM_BLOCKTYPES() { return 4; }
   static get MATCH_NUM() { return 3; }
 
   get game() { return window.game; }
@@ -42,19 +45,24 @@ export default class Field {
 
     return this.draggingStartPos.add(otherBlockDir.scale(Field.BLOCK_SIZE));
   }
+  get draggingToBlock() {
+    return this.blocks.find(block => block.contains(this.draggingToBlockPos));
+  }
 
   registerListeners() {
-    this.game.canvas.addEventListener("mousedown", (event) => {
+    let mouseStartCallback = (event) => {
       this.draggingStart = null;
-      if (this.animation.animationsActive === 0 && !this.waitForMovementStop) {
+      if (!this.blockingAnimation.animationsActive && !this.waitForMovementStop) {
         this.blocks.forEach(block => {
           if (block.hovered) {
             this.draggingStart = block;
           }
         });
       }
-    });
-    this.game.canvas.addEventListener("mouseup", (event) => {
+    };
+    this.game.canvas.addEventListener("mousedown", mouseStartCallback);
+    this.game.canvas.addEventListener("touchstart", mouseStartCallback);
+    let mouseEndCallback = (event) => {
       if (!this.draggingToBlockPos) {
         this.draggingStart = null;
         return;
@@ -67,53 +75,28 @@ export default class Field {
         }
       }
       this.draggingStart = null;
-    });
+    };
+    this.game.canvas.addEventListener("mouseup", mouseEndCallback);
+    this.game.canvas.addEventListener("touchend", mouseEndCallback);
   }
 
   dragEnd(block) {
+    if (this.draggingToBlock.team === this.draggingStart.team) {
+      return;
+    }
     // swap positions of blocks
-
-    let animationCallback = (() => {
-      let block1 = block;
-      let block2 = this.draggingStart;
-      return () => {
-        let positionDifference = 0;
-        [block1, block2].forEach(curBlock => {
-          let otherBlock = curBlock === block1 ? block2 : block1;
-          let shownPos = curBlock.pos.add(curBlock.posOffset);
-          let movingDirection = otherBlock.pos.sub(shownPos).scale(0.1);
-          positionDifference += movingDirection.length();
-          curBlock.posOffset = curBlock.posOffset.add(movingDirection);
-        });
-        if (positionDifference < 0.01) {
-          return true;
-        }
-        return false;
-      };
-    })();
-
-    let animationEndCallback = (() => {
-      let block1 = block;
-      let block2 = this.draggingStart;
-      return () => {
-        block1.posOffset = new vec2(0,0);
-        block2.posOffset = new vec2(0,0);
-        let tmpPos = block1.pos;
-        block1.pos = block2.pos;
-        block2.pos = tmpPos;
-        this.findAndRemoveMatches();
-      };
-    })();
-
-    this.animation.startAnimation(animationCallback, animationEndCallback);
+    this.blockingAnimation.startAnimation(
+      ExplicitAnimations.swapBlocks(block, this.draggingStart),
+      ExplicitAnimations.swapBlocksEnd(block, this.draggingStart, this)
+    );
 
   }
 
   findAndRemoveMatches() {
     this.createGrid();
-    if (this.findMatch(this.grid, true)) {
-      this.waitForMovementStop =  true;
-    } else {
+    if (!this.findMatch(this.grid, true)) {
+      this.game.addScore(this.moveScore);
+      this.moveScore = 0;
       this.fillField();
       this.waitForMovementStop = false;
     }
@@ -173,12 +156,13 @@ export default class Field {
   findMatch(grid, remove) {
     let biggestCount = 0;
     let foundSomething = false;
+    let aboutToRemove = [];
     for (let x = 0; x <= this.maxCols; x++) {
       for (let y = 0; y <= this.maxRows; y++) {
         if (grid.get(x,y) == null) {
           continue;
         }
-        if (this.BDFCount(grid, new vec2(x,y), Field.MATCH_NUM, remove)) {
+        if (this.BDFCount(grid, new vec2(x,y), Field.MATCH_NUM, remove, aboutToRemove)) {
           foundSomething = true;
 
           if (!remove) {
@@ -187,17 +171,25 @@ export default class Field {
         }
       }
     }
+    if (aboutToRemove.length > 0) {
+      this.moveScore += aboutToRemove.length;
+      this.blockingAnimation.startAnimation(
+        ExplicitAnimations.killBlocks(aboutToRemove),
+        ExplicitAnimations.killBlocksEnd(aboutToRemove, grid, this)
+      );
+    }
     return foundSomething;
   }
 
-  BDFCount(grid, pos, countTo, remove) {
+  BDFCount(grid, pos, countTo, remove, aboutToRemove) {
     let team = grid.get(pos).team;
     let seen = [];
     let count = 0;
     let recurse = (x,y) => {
       let stepPos = new vec2(x,y);
       let block = grid.get(x,y);
-      if (block == null
+      if (!Utils.rectContains(new vec2(0,0), new vec2(this.maxCols, this.maxRows), stepPos)
+        || block == null
         || block.team !== team
         || seen.find(seenBlock => seenBlock.pos.toString() == block.pos.toString())) {
         return;
@@ -213,10 +205,13 @@ export default class Field {
 
     let countedEnough = count >= countTo;
     if (countedEnough && remove) {
-      seen.forEach(block => {
-        grid.remove(block);
-        block.remove();
-      });
+      aboutToRemove.push(...seen);
+      // remove doubles
+      for (let i = aboutToRemove.length - 1; i > 0; i--) {
+        if (aboutToRemove.indexOf(aboutToRemove[i]) !== i) {
+          aboutToRemove.splice(i);
+        }
+      }
     }
 
     return countedEnough;
@@ -253,7 +248,7 @@ export default class Field {
           break;
         }
       }
-      if (!movementDetected) {
+      if (!movementDetected && !this.blockingAnimation.animationsActive) {
         this.findAndRemoveMatches();
       }
     }
@@ -261,11 +256,37 @@ export default class Field {
 
   render(ctx) {
     if (this.draggingStart && this.draggingToBlockPos) {
-      console.log("drags", this.dragginStart);
-      ctx.beginPath();
-      ctx.moveTo(this.draggingStartPos.x, this.draggingStartPos.y);
-      ctx.lineTo(this.draggingToBlockPos.x, this.draggingToBlockPos.y);
-      ctx.stroke();
+      let normal = this.draggingToBlockPos.sub(this.draggingStartPos).normalize();
+      normal = new vec2(-normal.y, normal.x);
+      let vertices = [
+        this.draggingStartPos.add(normal.scale(Field.BLOCK_SIZE / 2)),
+        this.draggingStartPos.sub(normal.scale(Field.BLOCK_SIZE / 2)),
+        this.draggingToBlockPos.add(normal.scale(Field.BLOCK_SIZE / 2)),
+        this.draggingToBlockPos.sub(normal.scale(Field.BLOCK_SIZE / 2)),
+      ];
+      let topLeft = vertices[0].clone();
+      let bottomRight = vertices[0].clone();
+      vertices.forEach(vertex => {
+        if (topLeft.x > vertex.x) {
+          topLeft.x = vertex.x;
+        }
+        if (topLeft.y > vertex.y) {
+          topLeft.y = vertex.y;
+        }
+        if (bottomRight.x < vertex.x) {
+          bottomRight.x = vertex.x;
+        }
+        if (bottomRight.y < vertex.y) {
+          bottomRight.y = vertex.y;
+        }
+      });
+      let width = bottomRight.x - topLeft.x;
+      let height = bottomRight.y - topLeft.y;
+      let grd = ctx.createLinearGradient(this.draggingStartPos.x,this.draggingStartPos.y,this.draggingToBlockPos.x, this.draggingToBlockPos.y);
+      grd.addColorStop(0, this.draggingStart.color);
+      grd.addColorStop(1, this.draggingToBlock.color);
+      ctx.fillStyle = grd;
+      ctx.fillRect(topLeft.x, topLeft.y, width, height);
     }
   }
 
