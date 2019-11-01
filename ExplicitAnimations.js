@@ -2,6 +2,7 @@ import vec2 from './vec2.js';
 import Color from './Color.js';
 import Utils from './Utils.js';
 import Field from './Field.js';
+import MatchX from './GameTypes/MatchX.js';
 
 export default class ExplicitAnimations {
 
@@ -62,7 +63,7 @@ export default class ExplicitAnimations {
     };
   }
 
-  static killBlocksEnd(blocks, grid, field) {
+  static killBlocksEndEndless(blocks, grid, field) {
     return () => {
       let num = blocks.length;
       let center = new vec2(0,0);
@@ -78,6 +79,27 @@ export default class ExplicitAnimations {
       center = center.scale(1 / num);
       field.animation.startAnimation(
         ExplicitAnimations.renderTextFadingOut('+' + num, center, 3)
+      );
+      field.waitForMovementStop = true;
+    };
+  }
+
+  static killBlocksEndMatchX(blocks, grid, field) {
+    return () => {
+      let num = blocks.length;
+      let center = new vec2(0,0);
+      blocks.forEach(block => {
+        /*
+        field.animation.startAnimation(
+          ExplicitAnimations.renderTextFadingOut('+ 1', block.center, 5)
+        );*/
+        center = center.add(block.center);
+        grid.remove(block);
+        block.remove();
+      });
+      center = center.scale(1 / num);
+      field.animation.startAnimation(
+        ExplicitAnimations.renderTextFadingOut('+' + MatchX.getScore(num), center, 3)
       );
       field.waitForMovementStop = true;
     };
@@ -101,6 +123,48 @@ export default class ExplicitAnimations {
       fadeColor.a -= fadeSpeed / 255;
       if (fadeColor.a <= 0) {
         window.game.removeRenderable(fadingText);
+        return true;
+      }
+      return false;
+    };
+  }
+
+  static renderTextBox(text, time) {
+    let foreGround = new Color(0,0,0);
+    let backGround = new Color(255,255,255);
+    let padding = 0.2;
+    let stroke = 5;
+    let fadeOutFor = 1500;
+    let rectWidth, rectHeight, rectPos, center, textMeasure = null;
+    let startTime = Date.now();
+    let textBox = {
+      render: (ctx) => {
+        if (textMeasure === null) {
+          textMeasure = ctx.measureText(text);
+          center = new vec2(window.game.width, window.game.height).scale(0.5);
+          rectWidth = textMeasure.width * (1 + padding / 2);
+          rectHeight = Field.BLOCK_SIZE * 1.5 * (1 + padding / 2);
+          rectPos = center.sub(rectWidth / 2, rectHeight / 2);
+        }
+        ctx.fillStyle = backGround.toString();
+        ctx.lineWidth = stroke;
+        ctx.strokeStyle = foreGround.toString();
+        ctx.fillRect(rectPos.x, rectPos.y, rectWidth, rectHeight);
+        ctx.strokeRect(rectPos.x, rectPos.y, rectWidth, rectHeight);
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.font = Field.BLOCK_SIZE + "px Monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(text, center.x, center.y + Field.BLOCK_SIZE / 4);
+      }
+    }
+    window.game.addRenderable(textBox);
+    return () => {
+      let timeActive = Date.now() - startTime;
+      if (time - timeActive < fadeOutFor) {
+        backGround.a = foreGround.a = (time - timeActive) / fadeOutFor;
+      }
+      if (time - timeActive < 0) {
+        window.game.removeRenderable(textBox);
         return true;
       }
       return false;

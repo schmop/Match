@@ -14,5 +14,21 @@ export default {
 				&& point.y >= topLeft.y
 				&& point.y < bottomRight.y
 		);
+	},
+	removeAllEventListeners(node, type) {
+		if (node instanceof Window) {
+			if (typeof type === 'string') {
+				node['on' + type] = null;
+			} else {
+				for(let prop in node) {
+					if (prop.startsWith("on")) {
+							node[prop] = null;
+					}
+				}
+			}
+		} else {
+  		let nodeClone = node.cloneNode(true);
+			node.parentNode.replaceChild(nodeClone, node);
+		}
 	}
 };

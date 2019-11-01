@@ -5,6 +5,8 @@ import Block from './Block.js';
 import Grid from './Grid.js';
 import Animation from './Animation.js';
 import ExplicitAnimations from './ExplicitAnimations.js';
+import Endless from './GameTypes/Endless.js';
+import MatchX from './GameTypes/MatchX.js';
 
 export default class Field {
   constructor() {
@@ -50,46 +52,24 @@ export default class Field {
   }
 
   registerListeners() {
-    let mouseStartCallback = (event) => {
-      this.draggingStart = null;
-      if (!this.blockingAnimation.animationsActive && !this.waitForMovementStop) {
-        this.blocks.forEach(block => {
-          if (block.hovered) {
-            this.draggingStart = block;
-          }
-        });
-      }
-    };
+    let mouseStartCallback, mouseEndCallback;
+    switch(this.game.gameMode) {
+      case 'endless':
+        mouseStartCallback = Endless.mouseStartCallback(this);
+        mouseEndCallback = Endless.mouseEndCallback(this);
+        break;
+      case 'x':
+        mouseStartCallback = MatchX.mouseStartCallback(this);
+        mouseEndCallback = MatchX.mouseEndCallback(this);
+        break;
+      case 'move':
+
+        break;
+    }
     this.game.canvas.addEventListener("mousedown", mouseStartCallback);
     this.game.canvas.addEventListener("touchstart", mouseStartCallback);
-    let mouseEndCallback = (event) => {
-      if (!this.draggingToBlockPos) {
-        this.draggingStart = null;
-        return;
-      }
-
-      for (let block of this.blocks) {
-        if (Utils.rectContains(block.topLeft, block.bottomRight, this.draggingToBlockPos)) {
-          this.dragEnd(block);
-          break;
-        }
-      }
-      this.draggingStart = null;
-    };
     this.game.canvas.addEventListener("mouseup", mouseEndCallback);
     this.game.canvas.addEventListener("touchend", mouseEndCallback);
-  }
-
-  dragEnd(block) {
-    if (this.draggingToBlock.team === this.draggingStart.team) {
-      return;
-    }
-    // swap positions of blocks
-    this.blockingAnimation.startAnimation(
-      ExplicitAnimations.swapBlocks(block, this.draggingStart),
-      ExplicitAnimations.swapBlocksEnd(block, this.draggingStart, this)
-    );
-
   }
 
   findAndRemoveMatches() {
@@ -110,8 +90,7 @@ export default class Field {
     );
   }
 
-  fillField() {
-    let block = null;
+  fillFieldNoMatches() {
     for (let x = 0; x < this.maxCols; x++) {
       for (let y = 0; y < this.maxRows; y++) {
         if (this.grid.get(x,y)) {
@@ -127,6 +106,29 @@ export default class Field {
         } while (match);
         this.blocks.push(block);
       }
+    }
+  }
+
+  fillFieldRandom() {
+    for (let x = 0; x < this.maxCols; x++) {
+      for (let y = 0; y < this.maxRows; y++) {
+        if (this.grid.get(x,y)) {
+          continue;
+        }
+        let match, team;
+        let block = this.createSingleBlock(x, y, Utils.randInt(0, Field.NUM_BLOCKTYPES));
+        this.grid.set(x,y,block);
+        this.blocks.push(block);
+      }
+    }
+  }
+
+  fillField() {
+    let block = null;
+    if (this.game.gameMode === 'endless') {
+      this.fillFieldNoMatches();
+    } else {
+      this.fillFieldRandom();
     }
   }
 
@@ -175,7 +177,7 @@ export default class Field {
       this.moveScore += aboutToRemove.length;
       this.blockingAnimation.startAnimation(
         ExplicitAnimations.killBlocks(aboutToRemove),
-        ExplicitAnimations.killBlocksEnd(aboutToRemove, grid, this)
+        ExplicitAnimations.killBlocksEndEndless(aboutToRemove, grid, this)
       );
     }
     return foundSomething;
@@ -248,8 +250,13 @@ export default class Field {
           break;
         }
       }
-      if (!movementDetected && !this.blockingAnimation.animationsActive) {
-        this.findAndRemoveMatches();
+      if (!movementDetected) {
+        if (this.game.gameMode === 'endless') {
+          Endless.movementStop(this);
+        } else if (this.game.gameMode === 'x') {
+          MatchX.movementStop(this);
+        }
+        this.waitForMovementStop = false;
       }
     }
   }

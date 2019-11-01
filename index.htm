@@ -5,20 +5,44 @@
   <script type="module">
 		import Match from './Match.js';
 
-		window.onload = function() {
-			let game = new Match("game");
-			window.game = game;
-			game.init();
-			game.startGame();
-		}
+    function startGame() {
+			window.game = new Match("game", document.getElementById("gameMode").value);
+			window.game.init();
+			window.game.startGame();
+    }
+
+		window.onload = () => {
+      window.gameMode = document.getElementById("gameMode");
+      if (localStorage != null && localStorage instanceof Storage) {
+        let lastGameMode;
+        if ((lastGameMode = localStorage.getItem("lastGameMode")) != null) {
+          window.gameMode.value = lastGameMode;
+        }
+      }
+      startGame();
+      window.gameMode.addEventListener("change", () => {
+        if (localStorage != null && localStorage instanceof Storage) {
+          localStorage.setItem("lastGameMode", window.gameMode.value);
+        }
+        startGame();
+      });
+    };
+
+
 
   </script>
 </head>
 <body>
   <div class="score-container">
     <span id="score"></span>
-    <span style="display: inline-block; width: 128px;"></span>
+    <span class="spacer"></span>
     <span id="best-move"></span>
+    <select id="gameMode" class="game-mode">
+      <option value="none" hidden disabled selected></option>
+     <option value="endless">Endless</option>
+     <option value="x">Match X</option>
+     <option value="move">Move</option>
+   </select>
   </div>
   <canvas style="border-bottom: 1px solid black;border-right: 1px solid black" id="game" width="1024px" height="768px"></canvas>
 </body>

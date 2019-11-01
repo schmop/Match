@@ -6,12 +6,10 @@ import Field from './Field.js';
 
 export default class Match {
 
-	constructor(canvasId) {
-		this.renderables = [];
-		this.updateables = [];
-		this.nextTicks = [];
-		this.canvas = document.getElementById(canvasId);
-
+	constructor(canvasId, gameMode) {
+		Utils.removeAllEventListeners(window, "keydown");
+		this.gameMode = gameMode;
+		this.canvasId = canvasId;
 		this.mouse = {
 			pos: new vec2(-1, -1),
 			down: false,
@@ -41,6 +39,11 @@ export default class Match {
 	}
 
 	init() {
+		Utils.removeAllEventListeners(document.getElementById(this.canvasId));
+		this.canvas = document.getElementById(this.canvasId);
+		this.renderables = [];
+		this.updateables = [];
+		this.nextTicks = [];
 		this.setScore(0);
 		this.setBestMove(0);
 		this.initCanvas();
@@ -112,17 +115,19 @@ export default class Match {
 		this.canvas.addEventListener('mouseout', (event) => {
 			this.mouse.pos = new vec2(-1, -1);
 		});
-		window.addEventListener('keydown', (event) => {
-			if (event.key === 'Enter') {
-				this.field.spawnBlockAtRandom();
-			}
-			else if (event.key === 'Escape') {
-				this.clear();
-			}
-			else if (event.key === 'Backspace') {
-				this.audio.play();
-			}
-		});
+		window.addEventListener('keydown', this.keyDownListener);
+	}
+
+	keyDownListener(event) {
+		if (event.key === 'Enter') {
+			this.field.spawnBlockAtRandom();
+		}
+		else if (event.key === 'Escape') {
+			this.clear();
+		}
+		else if (event.key === 'Backspace') {
+			this.audio.play();
+		}
 	}
 
 	nextTick(callback) {
