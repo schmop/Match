@@ -107,6 +107,7 @@ export default class Field {
         this.blocks.push(block);
       }
     }
+    this.sortBlocks();
   }
 
   fillFieldRandom() {
@@ -121,6 +122,7 @@ export default class Field {
         this.blocks.push(block);
       }
     }
+    this.sortBlocks();
   }
 
   fillField() {
@@ -138,6 +140,23 @@ export default class Field {
       Utils.randInt(0, this.maxRows),
       Utils.randInt(0, Field.NUM_BLOCKTYPES)
     ));
+    this.sortBlocks();
+  }
+
+  sortBlocks() {
+    this.blocks.sort((a,b) => a.team - b.team);
+    this.updateColumns();
+  }
+
+  updateColumns() {
+    this.columns = [];
+    this.blocks.forEach(block => {
+      let blockCol = Math.floor(block.pos.x / Field.BLOCK_SIZE);
+      if (this.columns[blockCol] == null) {
+        this.columns[blockCol] = [];
+      }
+      this.columns[blockCol].push(block);
+    });
   }
 
   blockAt(column, row) {
@@ -262,6 +281,20 @@ export default class Field {
   }
 
   render(ctx) {
+    let lastTeam = -1;
+    this.blocks.forEach(block => {
+      if (block.team !== lastTeam) {
+        if (lastTeam !== -1) {
+          ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.fillStyle = block.color.toString();
+        lastTeam = block.team;
+      }
+      block.render(ctx);
+    });
+    ctx.fill();
+
     if (this.draggingStart && this.draggingToBlockPos) {
       let normal = this.draggingToBlockPos.sub(this.draggingStartPos).normalize();
       normal = new vec2(-normal.y, normal.x);
@@ -290,8 +323,8 @@ export default class Field {
       let width = bottomRight.x - topLeft.x;
       let height = bottomRight.y - topLeft.y;
       let grd = ctx.createLinearGradient(this.draggingStartPos.x,this.draggingStartPos.y,this.draggingToBlockPos.x, this.draggingToBlockPos.y);
-      grd.addColorStop(0, this.draggingStart.color);
-      grd.addColorStop(1, this.draggingToBlock.color);
+      grd.addColorStop(0.4, this.draggingStart.color);
+      grd.addColorStop(0.6, this.draggingToBlock.color);
       ctx.fillStyle = grd;
       ctx.fillRect(topLeft.x, topLeft.y, width, height);
     }

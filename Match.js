@@ -7,7 +7,6 @@ import Field from './Field.js';
 export default class Match {
 
 	constructor(canvasId, gameMode) {
-		Utils.removeAllEventListeners(window, "keydown");
 		this.gameMode = gameMode;
 		this.canvasId = canvasId;
 		this.mouse = {
@@ -35,7 +34,7 @@ export default class Match {
 		this.height = Math.floor(this.height / Field.BLOCK_SIZE) * Field.BLOCK_SIZE;
 		this.canvas.width = this.width;
 		this.canvas.height = this.height;
-		this.ctx = this.canvas.getContext("2d");
+		this.ctx = this.canvas.getContext("2d", {alpha: false});
 	}
 
 	init() {
@@ -78,6 +77,8 @@ export default class Match {
 	}
 
 	registerListeners() {
+		Utils.removeAllEventListeners(window, "keydown");
+
 		let updateMouseByTouchEvent = (touch) => {
 			let rect = touch.target.getBoundingClientRect();
 			this.mouse.pos = new vec2(touch.targetTouches[0].pageX - rect.left, touch.targetTouches[0].pageY - rect.top);

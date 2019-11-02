@@ -108,20 +108,27 @@ export default class ExplicitAnimations {
   static renderTextFadingOut(text, pos, fadeSpeed) {
     let fadingPos = pos.clone();
     let randomWiggle = Utils.randInt(10,50);
-    let fadeColor = new Color(0,0,0,1);
+    let strokeColor = new Color(0, 0, 0);
+    let fillColor = new Color(255, 255, 255);
+    let alpha = 1;
     let fadingText = {
       render: (ctx) => {
-        ctx.fillStyle = fadeColor.toString();
+        ctx.fillStyle = fillColor.toString();
+        ctx.strokeStyle = strokeColor.toString();
+        ctx.strokeStyle
         ctx.font = Field.BLOCK_SIZE + "px Monospace";
         ctx.textAlign = "center";
+        ctx.lineWidth = 2;
         ctx.fillText(text, fadingPos.x, fadingPos.y);
+        ctx.strokeText(text, fadingPos.x, fadingPos.y);
       }
     }
-    window.game.addRenderable(fadingText);
+    window.game.addRenderable(fadingText, 15);
     return () => {
-      fadingPos = fadingPos.add(Math.cos(fadeColor.a * randomWiggle), -1);
-      fadeColor.a -= fadeSpeed / 255;
-      if (fadeColor.a <= 0) {
+      alpha -= fadeSpeed / 255;
+      strokeColor.a = fillColor.a = alpha;
+      fadingPos = fadingPos.add(Math.cos(alpha * randomWiggle), -1);
+      if (alpha <= 0) {
         window.game.removeRenderable(fadingText);
         return true;
       }
@@ -157,7 +164,7 @@ export default class ExplicitAnimations {
         ctx.fillText(text, center.x, center.y + Field.BLOCK_SIZE / 4);
       }
     }
-    window.game.addRenderable(textBox);
+    window.game.addRenderable(textBox, 20);
     return () => {
       let timeActive = Date.now() - startTime;
       if (time - timeActive < fadeOutFor) {

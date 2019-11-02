@@ -14,7 +14,6 @@ export default class Block {
 		this.shownSize = 0;
 
 		this.game.addUpdateable(this);
-		this.game.addRenderable(this);
 	}
 
 	// statics
@@ -29,6 +28,7 @@ export default class Block {
 	get topLeft() { return this.pos; }
 	get center() { return this.pos.add(this.size / 2, this.size / 2); }
 	get bottomRight() { return this.pos.add(this.size, this.size); }
+	get column() { return Math.floor(this.pos.x / Field.BLOCK_SIZE); }
 	get hovered() { return Utils.rectContains(this.topLeft, this.bottomRight, this.game.mouse.pos); }
 	get clicked() { return this.hovered && this.game.mouse.down; }
 	get highlighted() {
@@ -53,6 +53,7 @@ export default class Block {
 	remove() {
 		this.game.removeUpdateable(this);
 		this.game.removeRenderable(this);
+		this.field.columns[this.column] = this.field.columns[this.column].filter(block => block !== this);
 		this.field.blocks = this.otherBlocks.filter(block => block !== this);
 	}
 
@@ -78,38 +79,40 @@ export default class Block {
 	}
 
 	checkOtherBoxes() {
-		this.otherBlocks.forEach(box => {
+		let nextPos = this.nextPos;
+		for(let box of this.field.columns[this.column]) {
 			if (box === this) {
-				return;
+				continue;
 			}
 			// TODO: also check horizontally
 			// just check vertically downwards
 			if (Math.abs(this.pos.x - box.pos.x) < Field.BLOCK_SIZE) {
 				if (this.pos.y < box.pos.y) {
-					if (Math.abs(this.nextPos.y - box.pos.y) < Field.BLOCK_SIZE) {
+					if (Math.abs(nextPos.y - box.pos.y) < Field.BLOCK_SIZE) {
 						this.pos.y = box.pos.y - Field.BLOCK_SIZE;
 						this.vel.y = 0;
 					}
 				}
 			}
-		});
+		}
 	}
 
-	checkBoundaries(nextBox) {
-		if (this.nextBox.right > this.width) {
+	checkBoundaries() {
+		let nextBox = this.nextBox;
+		if (nextBox.right > this.width) {
 			this.pos.x = this.width - this.size;
 			this.vel.x = 0;
 		}
-		else if (this.nextBox.left < 0) {
+		else if (nextBox.left < 0) {
 			this.pos.x = 0;
 			this.vel.x = 0;
 		}
 
-		if (this.nextBox.bottom > this.height) {
+		if (nextBox.bottom > this.height) {
 			this.pos.y = this.height - this.size;
 			this.vel.y = 0;
 		}
-		else if (this.nextBox.top < 0) {
+		else if (nextBox.top < 0) {
 			this.pos.y = 0;
 			this.vel.y = 0;
 		}
@@ -125,10 +128,7 @@ export default class Block {
 	}
 
 	render(ctx) {
-		ctx.beginPath();
-		ctx.fillStyle = this.color.toString();
 		let renderPosition = this.pos.add(this.posOffset).add(new vec2(1,1).scale((this.size - this.shownSize) / 2));
 		ctx.rect(renderPosition.x, renderPosition.y, this.shownSize, this.shownSize);
-		ctx.fill();
 	}
 }
