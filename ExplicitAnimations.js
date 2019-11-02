@@ -27,9 +27,9 @@ export default class ExplicitAnimations {
     return () => {
       block1.posOffset = new vec2(0,0);
       block2.posOffset = new vec2(0,0);
-      let tmpPos = block1.pos;
-      block1.pos = block2.pos;
-      block2.pos = tmpPos;
+      let tmpTeam = block1.team;
+      block1.updateTeam(block2.team);
+      block2.updateTeam(tmpTeam);
       field.findAndRemoveMatches();
     };
   }
