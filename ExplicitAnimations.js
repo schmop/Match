@@ -23,14 +23,21 @@ export default class ExplicitAnimations {
     };
   }
 
-  static swapBlocksEnd(block1, block2, field) {
+  static swapBlocksEnd(block1, block2, field, checkForMatch) {
     return () => {
       block1.posOffset = new vec2(0,0);
       block2.posOffset = new vec2(0,0);
       let tmpTeam = block1.team;
       block1.updateTeam(block2.team);
       block2.updateTeam(tmpTeam);
-      field.findAndRemoveMatches();
+      if (checkForMatch) {
+        if (!field.findAndRemoveMatches()) {
+          field.blockingAnimation.startAnimation(
+            ExplicitAnimations.swapBlocks(block1, block2),
+            ExplicitAnimations.swapBlocksEnd(block1, block2, field, false)
+          );
+        }
+      }
     };
   }
 

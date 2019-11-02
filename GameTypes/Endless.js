@@ -9,7 +9,7 @@ export default class Endless {
     // swap positions of blocks
     field.blockingAnimation.startAnimation(
       ExplicitAnimations.swapBlocks(block, field.draggingStart),
-      ExplicitAnimations.swapBlocksEnd(block, field.draggingStart, field)
+      ExplicitAnimations.swapBlocksEnd(block, field.draggingStart, field, true)
     );
   }
 

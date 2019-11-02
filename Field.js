@@ -79,7 +79,9 @@ export default class Field {
       this.moveScore = 0;
       this.fillField();
       this.waitForMovementStop = false;
+      return false;
     }
+    return true;
   }
 
   createSingleBlock(column, row, team) {
