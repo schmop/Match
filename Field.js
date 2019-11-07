@@ -25,7 +25,7 @@ export default class Field {
     this.fillField();
   }
 
-  static get BLOCK_SIZE() { return 64; }
+  static get BLOCK_SIZE() { return 32; }
   static get NUM_BLOCKTYPES() { return 4; }
   static get MATCH_NUM() { return 3; }
 
